@@ -86,12 +86,17 @@ L'APK apparaît sous `target/dx/recoder/release/android/app/app/build/outputs/ap
 
 La cible `aarch64-linux-android` correspond aux téléphones Android 64 bits, soit la quasi totalité du parc actuel. Sans `--target`, la CLI Dioxus compile pour l'architecture de la machine hôte, ce qui produit un APK inutilisable sur un téléphone.
 
-## Récupérer l'APK depuis GitHub Actions
+## Télécharger l'APK
 
-1. Poussez une modification sur la branche `main`, ou lancez le workflow manuellement depuis l'onglet **Actions**.
-2. Ouvrez le dernier run nommé **Android APK**.
-3. Dans la section **Artifacts** en bas du résumé du run, téléchargez `recoder-apk`.
-4. Décompressez l'archive pour obtenir `recoder.apk`, puis installez-la sur le téléphone (le téléphone demandera d'autoriser l'installation depuis cette source).
+Chaque push sur `main` compile l'application et publie l'APK dans les releases du dépôt.
+
+1. Ouvrez la page des releases: https://github.com/Bel-bg/Recorder/releases/latest
+2. Téléchargez `Recoder-0.1.0.apk` dans la section **Assets**.
+3. Ouvrez le fichier depuis les téléchargements du téléphone, puis autorisez l'installation depuis cette source si Android le demande.
+
+Le même APK reste disponible comme artifact du run **Android APK** dans l'onglet Actions, sous le nom `recoder-apk`. Le workflow peut aussi être lancé à la main depuis cet onglet.
+
+Le tag de la release suit la version déclarée dans `Cargo.toml`. Tant que la version ne change pas, chaque nouveau build met à jour la release existante et remplace l'APK par la dernière compilation.
 
 L'APK n'est pas signé pour une publication Play Store: il est destiné aux tests personnels.
 

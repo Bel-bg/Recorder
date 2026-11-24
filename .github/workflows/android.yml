@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   ANDROID_NDK_VERSION: "28.2.13676358"
@@ -58,7 +58,6 @@ jobs:
         run: |
           curl -sSL "https://github.com/DioxusLabs/dioxus/releases/download/v${DIOXUS_CLI_VERSION}/dx-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C "$HOME/.cargo/bin"
           dx --version
-          echo "NDK_HOME=${NDK_HOME}" && ls "${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin" | head -3
 
       - name: Run core tests
         run: cargo test -p recoder-core
@@ -69,15 +68,47 @@ jobs:
         run: dx bundle --platform android --release --package-types apk --target aarch64-linux-android
 
       - name: Locate APK
+        id: apk
         run: |
-          find . -name "*.apk" -type f | tee apk-paths.txt
-          test -s apk-paths.txt || (echo "No APK produced" && exit 1)
-          while read -r apk; do ls -lh "$apk"; unzip -l "$apk" | grep "lib/" || true; done < apk-paths.txt
+          APK="$(find target/dx -name '*.apk' -type f | head -1)"
+          test -n "${APK}" || (echo "No APK produced" && exit 1)
+          ls -lh "${APK}"
+          unzip -l "${APK}" | grep "lib/" || true
+          echo "path=${APK}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload APK
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "asset=Recoder-${VERSION}.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Stage release asset
+        run: cp "${{ steps.apk.outputs.path }}" "${{ steps.version.outputs.asset }}"
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: recoder-apk
-          path: "**/*.apk"
+          path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Recoder ${{ steps.version.outputs.tag }}
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: ${{ steps.version.outputs.asset }}
+          body: |
+            APK Android de Recoder, compilé automatiquement depuis la branche main.
+
+            Installation sur le téléphone :
+            1. Téléchargez le fichier APK ci-dessous.
+            2. Ouvrez-le depuis les téléchargements du téléphone.
+            3. Autorisez l'installation depuis cette source si Android le demande.
+
+            L'APK est destiné aux tests personnels, il n'est pas signé pour le Play Store.
+            Recoder nécessite Android 8.0 ou plus récent et un microphone.
