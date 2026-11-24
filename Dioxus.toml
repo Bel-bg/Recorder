@@ -1,0 +1,17 @@
+[application]
+name = "Recoder"
+default_platform = "android"
+asset_dir = "assets"
+
+[bundle]
+identifier = "com.belmonde.recoder"
+publisher = "Belmonde"
+short_description = "Daily English speaking practice, recorded locally."
+category = "Education"
+
+[permissions]
+microphone = { description = "Recoder needs the microphone to record your speaking practice." }
+
+[android]
+min_sdk = 26
+target_sdk = 35

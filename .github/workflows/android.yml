@@ -1,0 +1,84 @@
+name: Android APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ANDROID_NDK_VERSION: "28.2.13676358"
+  ANDROID_PLATFORM: "android-35"
+  ANDROID_COMPILE_PLATFORM: "android-34"
+  DIOXUS_CLI_VERSION: "0.7.10"
+
+jobs:
+  apk:
+    name: Build Recoder APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK tools
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK and platforms
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "ndk;${ANDROID_NDK_VERSION}" "platforms;${ANDROID_PLATFORM}" "platforms;android-34" "build-tools;34.0.0" "build-tools;35.0.0"
+
+      - name: Install Dioxus CLI
+        run: |
+          curl -sSL "https://github.com/DioxusLabs/dioxus/releases/download/v${DIOXUS_CLI_VERSION}/dx-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C "$HOME/.cargo/bin"
+          dx --version
+
+      - name: Configure Android environment
+        run: |
+          NDK_PATH="${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}"
+          echo "NDK_HOME=${NDK_PATH}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=${NDK_PATH}" >> "$GITHUB_ENV"
+          echo "PATH=$HOME/.cargo/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/cmdline-tools/latest/bin:${PATH}" >> "$GITHUB_ENV"
+
+      - name: Run core tests
+        run: cargo test -p recoder-core
+
+      - name: Build release APK
+        # The CLI targets the host architecture when no device is attached, so
+        # the phone ABI has to be named explicitly.
+        run: dx bundle --platform android --release --package-types apk --target aarch64-linux-android
+
+      - name: Locate APK
+        run: |
+          find . -name "*.apk" -type f | tee apk-paths.txt
+          test -s apk-paths.txt || (echo "No APK produced" && exit 1)
+          ls -lh $(cat apk-paths.txt)
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: recoder-apk
+          path: "**/*.apk"
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,32 @@
+[package]
+name = "recoder"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+authors = ["Belmonde"]
+description = "Minimal Android app for daily English speaking practice"
+default-run = "recoder"
+
+[workspace]
+members = ["core"]
+resolver = "2"
+
+[dependencies]
+dioxus = { version = "0.7.10", features = ["mobile"] }
+recoder-core = { path = "core" }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+hound = "3.5"
+uuid = { version = "1", features = ["v4"] }
+log = "0.4"
+tokio = { version = "1", features = ["time"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+cpal = "0.18"
+jni = "0.21"
+ndk-context = "0.1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

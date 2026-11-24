@@ -1,0 +1,9 @@
+[package]
+name = "recoder-core"
+version = "0.1.0"
+edition = "2021"
+description = "Storage, models and statistics for Recoder"
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+rusqlite = { version = "0.43", features = ["bundled"] }

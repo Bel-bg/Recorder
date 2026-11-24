@@ -1,0 +1,30 @@
+# Rust
+/target
+/target-lock
+**/target/
+**/*.rs.bk
+Cargo.lock.lock
+
+# Dioxus
+/dist
+.dioxus/
+dx-session-cache/
+
+# Android
+.gradle/
+**/.gradle/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+**/jniLibs/
+android/.idea/
+*.iml
+
+# Tooling
+.env
+*.log
+.DS_Store
+.vscode/
+.idea/
