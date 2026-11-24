@@ -11,8 +11,6 @@ permissions:
 
 env:
   ANDROID_NDK_VERSION: "28.2.13676358"
-  ANDROID_PLATFORM: "android-35"
-  ANDROID_COMPILE_PLATFORM: "android-34"
   DIOXUS_CLI_VERSION: "0.7.10"
 
 jobs:
@@ -41,25 +39,26 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Android SDK tools
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK and platforms
+      - name: Configure Android SDK and install NDK
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager --install "ndk;${ANDROID_NDK_VERSION}" "platforms;${ANDROID_PLATFORM}" "platforms;android-34" "build-tools;34.0.0" "build-tools;35.0.0"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "${SDK_ROOT}/cmdline-tools" -name sdkmanager -type f | sort | tail -1)"
+          echo "Using ${SDKMANAGER}"
+          yes | "${SDKMANAGER}" --licenses > /dev/null || true
+          "${SDKMANAGER}" --install "platform-tools" "platforms;android-34" "platforms;android-35" "build-tools;34.0.0" "build-tools;35.0.0" "ndk;${ANDROID_NDK_VERSION}"
+          {
+            echo "ANDROID_HOME=${SDK_ROOT}"
+            echo "ANDROID_SDK_ROOT=${SDK_ROOT}"
+            echo "NDK_HOME=${SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}"
+            echo "ANDROID_NDK_HOME=${SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}"
+            echo "PATH=$(dirname "${SDKMANAGER}"):${SDK_ROOT}/platform-tools:$HOME/.cargo/bin:${PATH}"
+          } >> "$GITHUB_ENV"
 
       - name: Install Dioxus CLI
         run: |
           curl -sSL "https://github.com/DioxusLabs/dioxus/releases/download/v${DIOXUS_CLI_VERSION}/dx-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C "$HOME/.cargo/bin"
           dx --version
-
-      - name: Configure Android environment
-        run: |
-          NDK_PATH="${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}"
-          echo "NDK_HOME=${NDK_PATH}" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_HOME=${NDK_PATH}" >> "$GITHUB_ENV"
-          echo "PATH=$HOME/.cargo/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/cmdline-tools/latest/bin:${PATH}" >> "$GITHUB_ENV"
+          echo "NDK_HOME=${NDK_HOME}" && ls "${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin" | head -3
 
       - name: Run core tests
         run: cargo test -p recoder-core
@@ -73,7 +72,7 @@ jobs:
         run: |
           find . -name "*.apk" -type f | tee apk-paths.txt
           test -s apk-paths.txt || (echo "No APK produced" && exit 1)
-          ls -lh $(cat apk-paths.txt)
+          while read -r apk; do ls -lh "$apk"; unzip -l "$apk" | grep "lib/" || true; done < apk-paths.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
